@@ -22,6 +22,8 @@ class NeuralNetwork:
             Max number of epochs for training.
         loss_function: str
             Name of loss function.
+        verbose: bool
+            Print messages if True. Only do this with the testing and for small epochs/layers unless you wanna blow up your computer
 
     Attributes:
         arch: list of dicts
@@ -35,7 +37,8 @@ class NeuralNetwork:
         seed: int,
         batch_size: int,
         epochs: int,
-        loss_function: str
+        loss_function: str,
+        verbose : bool = False
     ):
 
         # Save architecture
@@ -50,7 +53,7 @@ class NeuralNetwork:
 
         # Initialize the parameter dictionary for use in training
         self._param_dict = self._init_params()
-
+        self._verbose = verbose
         self.cache = []
 
     def _init_params(self) -> Dict[str, ArrayLike]:
@@ -150,18 +153,20 @@ class NeuralNetwork:
             _W_curr = self._param_dict['W' + str(layer_idx)]
             _b_curr = self._param_dict['b' + str(layer_idx)]
             _activation = layer["activation"]
-            print("Layer index: " + str(layer_idx))
-            print("Shape _W :" + str(_W_curr.shape))
-            print("Shape _b :" + str(_b_curr.shape))
-            print("Shape _A_prev: " + str(A_prev.shape))
+            if self._verbose:
+                print("Layer index: " + str(layer_idx))
+                print("Shape _W :" + str(_W_curr.shape))
+                print("Shape _b :" + str(_b_curr.shape))
+                print("Shape _A_prev: " + str(A_prev.shape))
 
             # Run _single_forward
             A_curr, Z_curr = self._single_forward(W_curr = _W_curr,
                                                   b_curr = _b_curr,
                                                   A_prev = A_prev,
                                                   activation = _activation)
-            print("Shape Z_curr :" + str(Z_curr.shape))
-            print("Shape A_curr: " + str(A_curr.shape))
+            if self._verbose:
+                print("Shape Z_curr :" + str(Z_curr.shape))
+                print("Shape A_curr: " + str(A_curr.shape))
             # Cache results
             cache['Z' + str(layer_idx)] = Z_curr
             cache['A' + str(layer_idx)] = A_curr
@@ -215,7 +220,8 @@ class NeuralNetwork:
         else:
             raise ValueError("Invalid activation function")
         
-        print("Shape bp: " + str(bp.shape))
+        if self._verbose:
+            print("Shape bp: " + str(bp.shape))
 
         # Calculate dA, dW, db
         dA_prev = np.dot(bp, W_curr)
@@ -266,12 +272,13 @@ class NeuralNetwork:
             _Z_curr = cache['Z' + str(layer_idx)]
             _A_prev = cache['A' + str(idx)]
             _activation = layer['activation']
-            print("Layer index: " + str(layer_idx))
-            print("Shape _W_curr :" + str(_W_curr.shape))
-            print("Shape _b_curr :" + str(_b_curr.shape))
-            print("Shape _Z_curr: " + str(_Z_curr.shape))
-            print("Shape _A_prev:" + str(_A_prev.shape))
-            print("Shape _dA: " + str(_dA_curr.shape))
+            if self._verbose:
+                print("Layer index: " + str(layer_idx))
+                print("Shape _W_curr :" + str(_W_curr.shape))
+                print("Shape _b_curr :" + str(_b_curr.shape))
+                print("Shape _Z_curr: " + str(_Z_curr.shape))
+                print("Shape _A_prev:" + str(_A_prev.shape))
+                print("Shape _dA: " + str(_dA_curr.shape))
             
 
             # Run single backprop
@@ -301,8 +308,6 @@ class NeuralNetwork:
         """
         for idx, layer in enumerate(self.arch):
             layer_idx = idx + 1
-            # print("Param dict W" + str(layer_idx) + " shape: " + str(self._param_dict["W" + str(layer_idx)] .shape))
-            # print("Grad dict dW" + str(layer_idx) + " shape: " + str(grad_dict["dW" + str(layer_idx)].shape))
             # Update param by appropriate gradient * lr
             self._param_dict["W" + str(layer_idx)] -= grad_dict["dW" + str(layer_idx)] * self._lr 
             self._param_dict['b' + str(layer_idx)] -= grad_dict["db" + str(layer_idx)] * self._lr 
@@ -340,7 +345,7 @@ class NeuralNetwork:
         per_epoch_loss_val = []
 
         # Calculate the number of batches
-        num_batches = int(X_train.shape[0] / self._batch_size)
+        num_batches = np.ceil(X_train.shape[0] / self._batch_size)
 
         # Iterate through epochs
         for epoch in range(self._epochs):
@@ -361,7 +366,8 @@ class NeuralNetwork:
             for _X_batch, _y_batch in zip(X_batch, y_batch):
 
                 # Run forward
-                print("Forward:")
+                if self._verbose:
+                    print("Forward:")
                 output, cache = self.forward(_X_batch)
                 if self._loss_func.lower() == "mse":
                     batch_train_loss.append(self._mean_squared_error(_y_batch, output))
@@ -371,7 +377,8 @@ class NeuralNetwork:
                     raise ValueError("Invalid loss function")
                     
                 # Backpropogate, passing in the true labels y (-y_batch)
-                print("Back prop")
+                if self._verbose:
+                    print("Backprop")
                 grad_dict = self.backprop(_y_batch, output, cache)
                 self._update_params(grad_dict)
 
@@ -516,7 +523,8 @@ class NeuralNetwork:
         y_hat = np.clip(y_hat, 0.00001, 0.99999)
         dA = (((1 - y) / (1 - y_hat)) - (y / y_hat)) / len(y)
         
-        print("_BCE_BP dA shape: " + str(dA.shape))
+        if self._verbose:
+            print("_BCE_BP dA shape: " + str(dA.shape))
         return dA
 
     def _mean_squared_error(self, y: ArrayLike, y_hat: ArrayLike) -> float:
@@ -552,5 +560,6 @@ class NeuralNetwork:
                 partial derivative of loss with respect to A matrix.
         """
         dA = (-2 * (y - y_hat)) / len(y)
-        print("_MSE_BP dA shape: " + str(dA.shape))
+        if self._verbose:
+            print("_MSE_BP dA shape: " + str(dA.shape))
         return dA

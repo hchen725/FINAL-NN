@@ -15,11 +15,10 @@ You will begin by finishing the API for generating fully connected neural networ
 ### For steps 2 and 3
 
 * Finish all methods with a `pass` statement in the `NeuralNetwork` class in the `nn.py` file.
-
 ### For step 3
 
-* Finish the `sample_seqs` function in the `preprocess.py` file.
-* Finish the `one_hot_encode_seqs` function in the `preprocess.py` file.
+[x] Finish the `sample_seqs` function in the `preprocess.py` file.
+[x] Finish the `one_hot_encode_seqs` function in the `preprocess.py` file.
 
 ## Step 2: make your autoencoder
 
@@ -33,13 +32,13 @@ You will train a 64x16x64 autoencoder on the [digits](https://scikit-learn.org/s
 
 ### To-do
 
-* Load the digits dataset through sklearn using <code><a href="https://scikit-learn.org/stable/modules/generated/sklearn.datasets.load_digits.html">sklearn.datasets.load_digits()</a></code>.
-* Split the data into training and validation sets.
-* Generate an instance of your `NeuralNetwork` class with a 64x16x64 autoencoder architecture.
-* Train your autoencoder on the training data.
-* Plot your training and validation loss by epoch.
-* Quantify your average reconstruction error over the validation set.
-* Explain why you chose the hyperparameter values you did.
+[x] Load the digits dataset through sklearn using <code><a href="https://scikit-learn.org/stable/modules/generated/sklearn.datasets.load_digits.html">sklearn.datasets.load_digits()</a></code>.
+[x] Split the data into training and validation sets.
+[x] Generate an instance of your `NeuralNetwork` class with a 64x16x64 autoencoder architecture.
+[x] Train your autoencoder on the training data.
+[x] Plot your training and validation loss by epoch.
+[x] Quantify your average reconstruction error over the validation set.
+[x] Explain why you chose the hyperparameter values you did.
 
 ## Step 3: make your classifier
 
