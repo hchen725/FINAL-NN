@@ -137,15 +137,15 @@ class NeuralNetwork:
         """
         # Initialize cache 
         cache = {"A0" : X}
-
+        A_prev = X
         # Iterate through the arch
         for idx, layer in enumerate(self.arch):
             layer_idx = idx + 1
 
-            if layer_idx == 1:
-                A_prev = X
-            else:
-                A_prev = A_curr
+            # if layer_idx == 1:
+            #     A_prev = X
+            # else:
+            #     A_prev = A_curr
 
             _W_curr = self._param_dict['W' + str(layer_idx)]
             _b_curr = self._param_dict['b' + str(layer_idx)]
@@ -165,8 +165,9 @@ class NeuralNetwork:
             # Cache results
             cache['Z' + str(layer_idx)] = Z_curr
             cache['A' + str(layer_idx)] = A_curr
+            A_prev = A_curr
 
-        output = A_curr
+        output = A_prev
         self.cache = cache
         return output, cache
 
@@ -220,7 +221,7 @@ class NeuralNetwork:
         dA_prev = np.dot(bp, W_curr)
         dW_curr = np.dot(bp.T, A_prev)
         db_curr = np.sum(bp, axis = 0)
-        db_curr = db_curr.reshape(len(b_curr.shape),  -1)
+        db_curr = db_curr.reshape(b_curr.shape)
 
         return dA_prev, dW_curr, db_curr
 

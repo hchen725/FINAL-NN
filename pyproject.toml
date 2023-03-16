@@ -1,0 +1,26 @@
+[build-system]
+requires = [
+	"flit_core >=3.8",
+	"python_version >= '3.9'"
+	]
+build-backend = "flit_core.buildapi"
+dynamic=["version"]
+
+[project]
+name = "nn"
+authors = [{name = "Han Chen", email = "han.chen@ucsf.edu"}]
+license = {file = "LICENSE"}
+classifiers = ["License :: OSI Approved :: MIT License"]
+dynamic = ["version", "description"]
+dependencies = ["pytest", "numpy", "scipy", "matplotlib", "scikit-learn", "pandas", "typing"]
+
+[tool.coverage.run]
+source = ["src"] # parent directory of package
+
+[tool.pytest.ini_options]
+pythonpath = [
+  "."
+]
+
+[project.urls]
+Home = "https://github.com/hchen725/FINAL-NN"
