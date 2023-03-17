@@ -1,3 +1,4 @@
+![BuildStatus](https://github.com/hchen725/FINAL-NN/actions/workflows/main.yml/badge.svg?)
 # Final project: neural network
 
 ## Overview

@@ -23,7 +23,9 @@ class NeuralNetwork:
         loss_function: str
             Name of loss function.
         verbose: bool
-            Print messages if True. Only do this with the testing and for small epochs/layers unless you wanna blow up your computer
+            Print messages if True giving some status updates
+        debug: bool
+            Print messages to help with debugging. Only with small epochs/layers to prevent computer combustion
 
     Attributes:
         arch: list of dicts
@@ -38,7 +40,8 @@ class NeuralNetwork:
         batch_size: int,
         epochs: int,
         loss_function: str,
-        verbose : bool = False
+        verbose: bool = False,
+        debug : bool = False
     ):
 
         # Save architecture
@@ -54,14 +57,14 @@ class NeuralNetwork:
         # Initialize the parameter dictionary for use in training
         self._param_dict = self._init_params()
         self._verbose = verbose
+        self._debug = debug
 
         # Some parameters to help with debugging this hot mess
-        if self._verbose:
+        # If epochs > 1, don't print the messages, despite what you think you might want.
+        if self._debug:
             if epochs > 1:
-                print("Epochs is greater than 1, setting verbose to False")
-                self._verbose = False
-        if self._verbose:
-            self.cache = []
+                print("Epochs is greater than 1, setting debug to False")
+                self._debug = False
 
     def _init_params(self) -> Dict[str, ArrayLike]:
         """
@@ -147,19 +150,22 @@ class NeuralNetwork:
         """
         # Initialize cache 
         cache = {"A0" : X}
+
         # Iterate through the arch
         for idx, layer in enumerate(self.arch):
+
             layer_idx = idx + 1
 
-            if layer_idx == 1:
+            # Get parameters for single forward
+            if layer_idx == 1: # If first index, use X
                 A_prev = X
-            else:
+            else: # Else use the calculated A
                 A_prev = A_curr
-
             _W_curr = self._param_dict['W' + str(layer_idx)]
             _b_curr = self._param_dict['b' + str(layer_idx)]
             _activation = layer["activation"]
-            if self._verbose:
+
+            if self._debug:
                 print("Layer index: " + str(layer_idx))
                 print("W" + str(layer_idx) + " shape: " + str(_W_curr.shape))
                 print("b" + str(layer_idx) + " shape: " + str(_b_curr.shape))
@@ -170,17 +176,20 @@ class NeuralNetwork:
                                                   b_curr = _b_curr,
                                                   A_prev = A_prev,
                                                   activation = _activation)
-            if self._verbose:
+            
+            if self._debug:
                 print("Z_curr shape:" + str(Z_curr.shape))
                 print("A_curr shape: " + str(A_curr.shape))
                 print("")
+
             # Cache results
             cache['Z' + str(layer_idx)] = Z_curr
             cache['A' + str(layer_idx)] = A_curr
-            A_prev = A_curr
-
+        
+        if self._debug:
+            self.cache = cache
+        
         output = A_curr
-        self.cache = cache
         return output, cache
 
 
@@ -227,7 +236,7 @@ class NeuralNetwork:
         else:
             raise ValueError("Invalid activation function")
         
-        if self._verbose:
+        if self._debug:
             print("Shape bp: " + str(bp.shape))
 
         # Calculate dA, dW, db
@@ -257,7 +266,7 @@ class NeuralNetwork:
             grad_dict: Dict[str, ArrayLike]
                 Dictionary containing the gradient information from this pass of backprop.
         """
-        if self._verbose:
+        if self._debug:
             print("Beginning backprop")
         
         # Initialize grad_dict
@@ -268,24 +277,23 @@ class NeuralNetwork:
             # Get current layer index
             layer_idx = idx + 1
             
-            if layer_idx == len(self.arch):
+            # Get parameters for single backrpop
+            if layer_idx == len(self.arch): # if this is the last layer, calculate dA
                 if self._loss_func.lower() == "mse":
                     _dA_curr = self._mean_squared_error_backprop(y, y_hat)
                 elif self._loss_func.lower() == "bce":
                     _dA_curr = self._binary_cross_entropy_backprop(y, y_hat)
                 else: 
                     raise ValueError("Invalid loss function")
-            else: 
+            else: # Otherwise use previously calculated dA
                 _dA_curr = dA_prev
-
-            # Get parameters for _single_backprop
             _W_curr = self._param_dict['W' + str(layer_idx)]
             _b_curr = self._param_dict['b' + str(layer_idx)]
             _Z_curr = cache['Z' + str(layer_idx)]
             _A_prev = cache['A' + str(idx)]
             _activation = layer['activation']
 
-            if self._verbose:
+            if self._debug:
                 print("")
                 print("Layer index: " + str(layer_idx))
                 print("W" + str(layer_idx) + " shape: " + str(_W_curr.shape))
@@ -303,13 +311,13 @@ class NeuralNetwork:
                                                               activation_curr = _activation)
         
             # Populate grad_dict with results from single backprop
-            if self._verbose:
+            if self._debug:
                 print("Updating gradient dictionary")
 
             grad_dict['dW' + str(layer_idx)] = dW_curr
             grad_dict['db' + str(layer_idx)] = db_curr
 
-            if self._verbose:
+            if self._debug:
                 print("Done with backpropgation calculations")
                 print("")
 
@@ -364,13 +372,16 @@ class NeuralNetwork:
 
         # Calculate the number of batches
         num_batches = np.ceil(X_train.shape[0] / self._batch_size)
-        print("Number of batches: " + str(num_batches))
+
+        if self._verbose:
+            print("Number of batches: " + str(num_batches))
+
         # Iterate through epochs
         for epoch in range(self._epochs):
 
-            if self._verbose:
+            if self._debug:
                 print("Running epoch: " + str(epoch))
-            batch_num = 1
+                batch_num = 1 
 
             # Shuffle training data
             shuffle = np.random.permutation(X_train.shape[0])
@@ -381,7 +392,7 @@ class NeuralNetwork:
             X_batch = np.array_split(X_train_shuffled, num_batches)
             y_batch = np.array_split(y_train_shuffled, num_batches)
 
-            if self._verbose:
+            if self._debug:
                 print("Split batches")
             self.X_batch = X_batch
             self.y_batch = y_batch
@@ -393,19 +404,19 @@ class NeuralNetwork:
             for _X_batch, _y_batch in zip(X_batch, y_batch):
 
                 # Run forward
-                if self._verbose:
+                if self._debug:
                     print("Batch number: " + str(batch_num))
                     print("Forward: ")
-                self._X_batch = _X_batch
-                self._y_batch = _y_batch
-                output, cache = self.forward(_X_batch)
+                    self._X_batch = _X_batch
+                    self._y_batch = _y_batch
 
                 
-                self._forward_output = output
-                self._forward_y_batch = _y_batch
+                output, cache = self.forward(_X_batch)
 
-                if self._verbose:
+                if self._debug:
                     print("Calculating batch loss")
+                    self._forward_output = output
+
                 if self._loss_func.lower() == "mse":
                     batch_train_loss.append(self._mean_squared_error(_y_batch, output))
                 elif self._loss_func.lower() == "bce":
@@ -413,66 +424,58 @@ class NeuralNetwork:
                 else: 
                     raise ValueError("Invalid loss function")
                     
-                
-                if self._verbose:
+                if self._debug:
                     print("Done with forward calculations")
                     print("")
 
                 # Backpropogate, passing in the true labels y (_y_batch)
                 grad_dict = self.backprop(_y_batch, output, cache)
-                if self._verbose:
+
+                if self._debug:
                     print("Updating parameters with gradient dictionary")
                 self._update_params(grad_dict)
-                if self._verbose:
+                if self._debug:
                     print("Done with batch " + str(batch_num))
                     print("")
-                
-                # To delete
-                if batch_num % 10 == 0:
-                    print("Finished batch " + str(batch_num) + " out of " + str(num_batches))
-                batch_num += 1
-
+                    batch_num += 1
             # Done with batch calculations
-            if self._verbose:
+
+            if self._debug:
                 print("Computed all batches, calculating mean training loss for epoch " + str(epoch))
                 print("")
 
             # Calculate average training loss
             per_epoch_loss_train.append(np.mean(batch_train_loss))
 
-
             # Compute the prediction in batches as well to keep laptop from frying
-            if self._verbose:
+            if self._debug:
                 print("Predicting values")
+                print("Splitting validation data into batches")
 
-            # # Shuffle validation data
-            # shuffle = np.random.permutation(len(X_val.shape[0]))
-            # X_val_shuffled = X_val[shuffle]
-            # y_val_shuffled = y_val[shuffle]
-            
-            # # Create batches of validation data
-            # X_val_batch = np.array_split(X_val, num_batches)
-            # y_val_batch = np.array_split(y_val, num_batches)
+            # Create batches of validation data
+            X_val_batch = np.array_split(X_val, num_batches)
+            y_val_batch = np.array_split(y_val, num_batches)
 
-            # for 
+            for _X_val_batch, _y_val_batch in zip(X_val_batch, y_val_batch):
+                pred = self.predict(_X_val_batch)
+                if self._loss_func.lower() == "mse":
+                    batch_val_loss.append(self._mean_squared_error(_y_val_batch, pred))
+                elif self._loss_func.lower() == "bce":
+                    batch_val_loss.append(self._binary_cross_entropy(_y_val_batch, pred))
+                else:
+                    raise ValueError("Invalid loss function")
 
-
-            pred = self.predict(X_val)
-            
-            if self._verbose:
-                print("Calculating error loss")
-            if self._loss_func.lower() == "mse":
-                batch_val_loss.append(self._mean_squared_error(y_val, pred))
-            elif self._loss_func.lower() == "bce":
-                batch_val_loss.append(self._binary_cross_entropy(y_val, pred))
-            
-            # Calculate average validation loss
             per_epoch_loss_val.append(np.mean(batch_val_loss))
 
-            if epoch % 10 == 0:
-                print("Finished epoch " + str(epoch + 1) + " out of " + str(self._epochs))
+            if self._verbose:
+                # Get 10 message updates
+                _e_div = np.ceil(self._epochs/10)
+                if epoch % _e_div == 0:
+                    print("Finished epoch " + str(epoch + 1) + " out of " + str(self._epochs))
 
-        print("Completed NN fitting")
+        if self._verbose:
+             print("Completed NN fitting")
+
         return per_epoch_loss_train, per_epoch_loss_val
 
     def predict(self, X: ArrayLike) -> ArrayLike:
@@ -525,7 +528,7 @@ class NeuralNetwork:
 
         dZ = dA * self._sigmoid(Z) * (1 - self._sigmoid(Z))
 
-        if self._verbose:
+        if self._debug:
             print("Calculating sigmoid backprop: ")
             print("Shape dA: " + str(dA.shape))
             print("Shape Z: " + str(Z.shape))
@@ -568,7 +571,7 @@ class NeuralNetwork:
         """
         dZ = dA * (Z > 0).astype(int)
 
-        if self._verbose:
+        if self._debug:
             print("Calculating relu backprop: ")
             print("Shape dA: " + str(dA.shape))
             print("Shape Z: " + str(Z.shape))
@@ -599,7 +602,7 @@ class NeuralNetwork:
         # Calculate loss
         loss = -np.mean(y * np.log(y_hat) + (1 - y) * np.log(1 - y_hat))
         
-        if self._verbose:
+        if self._debug:
             print("Calculated BCE loss " + str(round(loss, 4)))
 
         return loss
@@ -625,7 +628,7 @@ class NeuralNetwork:
         y = y.reshape(y_hat.shape)
         dA = (((1 - y) / (1 - y_hat)) - (y / y_hat)) / len(y)
         
-        if self._verbose:
+        if self._debug:
             print("Initial BCE backprop calculation")
             print("y shape: " + str(y.shape))
             print("y_hat shape: " + str(y_hat.shape))
@@ -652,7 +655,7 @@ class NeuralNetwork:
         """
         
         loss = np.mean(np.square(y - y_hat))
-        if self._verbose:
+        if self._debug:
             print("Calculated MSE loss " + str(round(loss, 4)))
 
         return loss
@@ -674,7 +677,7 @@ class NeuralNetwork:
 
         dA = (-2 * (y - y_hat)) / len(y)
 
-        if self._verbose:
+        if self._debug:
             print("Initial MSE backprop calculation")
             print("y shape: " + str(y.shape))
             print("y_hat shape: " + str(y_hat.shape))
