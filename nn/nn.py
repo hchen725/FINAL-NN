@@ -475,6 +475,8 @@ class NeuralNetwork:
 
         if self._verbose:
              print("Completed NN fitting")
+             self.epoch_loss_train = per_epoch_loss_train
+             self.epoch_loss_val = per_epoch_loss_val
 
         return per_epoch_loss_train, per_epoch_loss_val
 
@@ -674,7 +676,7 @@ class NeuralNetwork:
             dA: ArrayLike
                 partial derivative of loss with respect to A matrix.
         """
-
+        y = y.reshape(y_hat.shape)
         dA = (-2 * (y - y_hat)) / len(y)
 
         if self._debug:
