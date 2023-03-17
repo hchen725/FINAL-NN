@@ -161,9 +161,9 @@ class NeuralNetwork:
             _activation = layer["activation"]
             if self._verbose:
                 print("Layer index: " + str(layer_idx))
-                print("Shape W :" + str(_W_curr.shape))
-                print("Shape b :" + str(_b_curr.shape))
-                print("Shape A_prev: " + str(A_prev.shape))
+                print("W" + str(layer_idx) + " shape: " + str(_W_curr.shape))
+                print("b" + str(layer_idx) + " shape: " + str(_b_curr.shape))
+                print("A_prev shape: " + str(A_prev.shape))
 
             # Run _single_forward
             A_curr, Z_curr = self._single_forward(W_curr = _W_curr,
@@ -171,8 +171,8 @@ class NeuralNetwork:
                                                   A_prev = A_prev,
                                                   activation = _activation)
             if self._verbose:
-                print("Shape Z_curr :" + str(Z_curr.shape))
-                print("Shape A_curr: " + str(A_curr.shape))
+                print("Z_curr shape:" + str(Z_curr.shape))
+                print("A_curr shape: " + str(A_curr.shape))
             # Cache results
             cache['Z' + str(layer_idx)] = Z_curr
             cache['A' + str(layer_idx)] = A_curr
@@ -257,21 +257,25 @@ class NeuralNetwork:
         """
         if self._verbose:
             print("Beginning backprop")
+        
         # Initialize grad_dict
         grad_dict = {}
 
-        # Calculate dA of the current layer
-        if self._loss_func.lower() == "mse":
-            _dA_curr = self._mean_squared_error_backprop(y, y_hat)
-        elif self._loss_func.lower() == "bce":
-            _dA_curr = self._binary_cross_entropy_backprop(y, y_hat)
-        else: 
-            raise ValueError("Invalid loss function")
-
         for idx, layer in reversed(list(enumerate(self.arch))):
+
             # Get current layer index
             layer_idx = idx + 1
             
+            if layer_idx == len(self.arch):
+                if self._loss_func.lower() == "mse":
+                    _dA_curr = self._mean_squared_error_backprop(y, y_hat)
+                elif self._loss_func.lower() == "bce":
+                    _dA_curr = self._binary_cross_entropy_backprop(y, y_hat)
+                else: 
+                    raise ValueError("Invalid loss function")
+            else: 
+                _dA_curr = dA_prev
+
             # Get parameters for _single_backprop
             _W_curr = self._param_dict['W' + str(layer_idx)]
             _b_curr = self._param_dict['b' + str(layer_idx)]
@@ -280,12 +284,13 @@ class NeuralNetwork:
             _activation = layer['activation']
 
             if self._verbose:
+                print("")
                 print("Layer index: " + str(layer_idx))
-                print("Shape W_curr :" + str(_W_curr.shape))
-                print("Shape b_curr :" + str(_b_curr.shape))
-                print("Shape Z_curr: " + str(_Z_curr.shape))
-                print("Shape A_prev:" + str(_A_prev.shape))
-                print("Shape dA: " + str(_dA_curr.shape))
+                print("W" + str(layer_idx) + " shape: " + str(_W_curr.shape))
+                print("b" + str(layer_idx) + " shape: " + str(_b_curr.shape))
+                print("Z" + str(layer_idx) + " shape: " + str(_Z_curr.shape))
+                print("A_prev shape: " + str(_A_prev.shape))
+                print("dA shape: " + str(_dA_curr.shape))
             
             # Run single backprop
             dA_prev, dW_curr, db_curr = self._single_backprop(W_curr = _W_curr,
@@ -296,10 +301,11 @@ class NeuralNetwork:
                                                               activation_curr = _activation)
         
             # Populate grad_dict with results from single backprop
+            if self._verbose:
+                print("Updating gradient dictionary")
+
             grad_dict['dW' + str(layer_idx)] = dW_curr
             grad_dict['db' + str(layer_idx)] = db_curr
-            # Update the dA
-            _dA_curr = dA_prev
 
         return grad_dict
 
@@ -451,10 +457,11 @@ class NeuralNetwork:
             dZ: ArrayLike
                 Partial derivative of current layer Z matrix.
         """
+
         dZ = dA * self._sigmoid(Z) * (1 - self._sigmoid(Z))
 
         if self._verbose:
-            print("In sigmoid backprop: ")
+            print("Calculating sigmoid backprop: ")
             print("Shape dA: " + str(dA.shape))
             print("Shape Z: " + str(Z.shape))
             print("Shape dZ: " + str(dZ.shape))
@@ -497,7 +504,7 @@ class NeuralNetwork:
         dZ = dA * (Z > 0).astype(int)
 
         if self._verbose:
-            print("In relu backprop: ")
+            print("Calculating relu backprop: ")
             print("Shape dA: " + str(dA.shape))
             print("Shape Z: " + str(Z.shape))
             print("Shape dZ: " + str(dZ.shape))
@@ -547,6 +554,7 @@ class NeuralNetwork:
         # Should implement epsilon value here, but too lazy, instead using np.clip
         # Prevent NaN and Inf values
         y_hat = np.clip(y_hat, 0.00001, 0.99999)
+        y = y.reshape(y_hat.shape)
         dA = (((1 - y) / (1 - y_hat)) - (y / y_hat)) / len(y)
         
         if self._verbose:
