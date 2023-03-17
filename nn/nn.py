@@ -54,7 +54,14 @@ class NeuralNetwork:
         # Initialize the parameter dictionary for use in training
         self._param_dict = self._init_params()
         self._verbose = verbose
-        self.cache = []
+
+        # Some parameters to help with debugging this hot mess
+        if self._verbose:
+            if epochs > 1:
+                print("Epochs is greater than 1, setting verbose to False")
+                self._verbose = False
+        if self._verbose:
+            self.cache = []
 
     def _init_params(self) -> Dict[str, ArrayLike]:
         """
@@ -140,24 +147,23 @@ class NeuralNetwork:
         """
         # Initialize cache 
         cache = {"A0" : X}
-        A_prev = X
         # Iterate through the arch
         for idx, layer in enumerate(self.arch):
             layer_idx = idx + 1
 
-            # if layer_idx == 1:
-            #     A_prev = X
-            # else:
-            #     A_prev = A_curr
+            if layer_idx == 1:
+                A_prev = X
+            else:
+                A_prev = A_curr
 
             _W_curr = self._param_dict['W' + str(layer_idx)]
             _b_curr = self._param_dict['b' + str(layer_idx)]
             _activation = layer["activation"]
             if self._verbose:
                 print("Layer index: " + str(layer_idx))
-                print("Shape _W :" + str(_W_curr.shape))
-                print("Shape _b :" + str(_b_curr.shape))
-                print("Shape _A_prev: " + str(A_prev.shape))
+                print("Shape W :" + str(_W_curr.shape))
+                print("Shape b :" + str(_b_curr.shape))
+                print("Shape A_prev: " + str(A_prev.shape))
 
             # Run _single_forward
             A_curr, Z_curr = self._single_forward(W_curr = _W_curr,
@@ -170,9 +176,8 @@ class NeuralNetwork:
             # Cache results
             cache['Z' + str(layer_idx)] = Z_curr
             cache['A' + str(layer_idx)] = A_curr
-            A_prev = A_curr
 
-        output = A_prev
+        output = A_curr
         self.cache = cache
         return output, cache
 
@@ -250,7 +255,8 @@ class NeuralNetwork:
             grad_dict: Dict[str, ArrayLike]
                 Dictionary containing the gradient information from this pass of backprop.
         """
-
+        if self._verbose:
+            print("Beginning backprop")
         # Initialize grad_dict
         grad_dict = {}
 
@@ -272,15 +278,15 @@ class NeuralNetwork:
             _Z_curr = cache['Z' + str(layer_idx)]
             _A_prev = cache['A' + str(idx)]
             _activation = layer['activation']
+
             if self._verbose:
                 print("Layer index: " + str(layer_idx))
-                print("Shape _W_curr :" + str(_W_curr.shape))
-                print("Shape _b_curr :" + str(_b_curr.shape))
-                print("Shape _Z_curr: " + str(_Z_curr.shape))
-                print("Shape _A_prev:" + str(_A_prev.shape))
-                print("Shape _dA: " + str(_dA_curr.shape))
+                print("Shape W_curr :" + str(_W_curr.shape))
+                print("Shape b_curr :" + str(_b_curr.shape))
+                print("Shape Z_curr: " + str(_Z_curr.shape))
+                print("Shape A_prev:" + str(_A_prev.shape))
+                print("Shape dA: " + str(_dA_curr.shape))
             
-
             # Run single backprop
             dA_prev, dW_curr, db_curr = self._single_backprop(W_curr = _W_curr,
                                                               b_curr = _b_curr,
@@ -367,7 +373,7 @@ class NeuralNetwork:
 
                 # Run forward
                 if self._verbose:
-                    print("Forward:")
+                    print("Forward: ")
                 output, cache = self.forward(_X_batch)
                 if self._loss_func.lower() == "mse":
                     batch_train_loss.append(self._mean_squared_error(_y_batch, output))
@@ -378,7 +384,8 @@ class NeuralNetwork:
                     
                 # Backpropogate, passing in the true labels y (-y_batch)
                 if self._verbose:
-                    print("Backprop")
+                    print("Done with forward calculations")
+                    print("")
                 grad_dict = self.backprop(_y_batch, output, cache)
                 self._update_params(grad_dict)
 
@@ -445,6 +452,16 @@ class NeuralNetwork:
                 Partial derivative of current layer Z matrix.
         """
         dZ = dA * self._sigmoid(Z) * (1 - self._sigmoid(Z))
+
+        if self._verbose:
+            print("In sigmoid backprop: ")
+            print("Shape dA: " + str(dA.shape))
+            print("Shape Z: " + str(Z.shape))
+            print("Shape dZ: " + str(dZ.shape))
+            self._sig_bp_dA = dA
+            self._sig_bp_Z = Z
+            self._sig_bp_dZ = dZ
+        
         return dZ
 
     def _relu(self, Z: ArrayLike) -> ArrayLike:
@@ -478,6 +495,15 @@ class NeuralNetwork:
                 Partial derivative of current layer Z matrix.
         """
         dZ = dA * (Z > 0).astype(int)
+
+        if self._verbose:
+            print("In relu backprop: ")
+            print("Shape dA: " + str(dA.shape))
+            print("Shape Z: " + str(Z.shape))
+            print("Shape dZ: " + str(dZ.shape))
+            self._relu_bp_dA = dA
+            self._relu_bp_Z = Z
+            self._relu_bp_dZ = dZ
         
         return dZ
 
@@ -524,7 +550,14 @@ class NeuralNetwork:
         dA = (((1 - y) / (1 - y_hat)) - (y / y_hat)) / len(y)
         
         if self._verbose:
-            print("_BCE_BP dA shape: " + str(dA.shape))
+            print("Initial BCE backprop calculation")
+            print("y shape: " + str(y.shape))
+            print("y_hat shape: " + str(y_hat.shape))
+            print("dA shape: " + str(dA.shape))
+            self._bce_y = y
+            self._bce_y_hat = y_hat
+            self._bce_dA = y_hat
+
         return dA
 
     def _mean_squared_error(self, y: ArrayLike, y_hat: ArrayLike) -> float:
@@ -559,7 +592,16 @@ class NeuralNetwork:
             dA: ArrayLike
                 partial derivative of loss with respect to A matrix.
         """
+
         dA = (-2 * (y - y_hat)) / len(y)
+
         if self._verbose:
-            print("_MSE_BP dA shape: " + str(dA.shape))
+            print("Initial MSE backprop calculation")
+            print("y shape: " + str(y.shape))
+            print("y_hat shape: " + str(y_hat.shape))
+            print("dA shape: " + str(dA.shape))
+            self._mse_y = y
+            self._mse_y_hat = y_hat
+            self._mse_dA = y_hat
+
         return dA
