@@ -173,9 +173,11 @@ class NeuralNetwork:
             if self._verbose:
                 print("Z_curr shape:" + str(Z_curr.shape))
                 print("A_curr shape: " + str(A_curr.shape))
+                print("")
             # Cache results
             cache['Z' + str(layer_idx)] = Z_curr
             cache['A' + str(layer_idx)] = A_curr
+            A_prev = A_curr
 
         output = A_curr
         self.cache = cache
@@ -307,6 +309,10 @@ class NeuralNetwork:
             grad_dict['dW' + str(layer_idx)] = dW_curr
             grad_dict['db' + str(layer_idx)] = db_curr
 
+            if self._verbose:
+                print("Done with backpropgation calculations")
+                print("")
+
         return grad_dict
 
     def _update_params(self, grad_dict: Dict[str, ArrayLike]):
@@ -358,18 +364,27 @@ class NeuralNetwork:
 
         # Calculate the number of batches
         num_batches = np.ceil(X_train.shape[0] / self._batch_size)
-
+        print("Number of batches: " + str(num_batches))
         # Iterate through epochs
         for epoch in range(self._epochs):
 
+            if self._verbose:
+                print("Running epoch: " + str(epoch))
+            batch_num = 1
+
             # Shuffle training data
-            shuffle = np.random.permutation(len(y_train))
-            _X_train = X_train[shuffle]
-            _y_train = y_train[shuffle]
+            shuffle = np.random.permutation(X_train.shape[0])
+            X_train_shuffled = X_train[shuffle]
+            y_train_shuffled = y_train[shuffle]
 
             # Create batches
-            X_batch = np.array_split(_X_train, num_batches)
-            y_batch = np.array_split(_y_train, num_batches)
+            X_batch = np.array_split(X_train_shuffled, num_batches)
+            y_batch = np.array_split(y_train_shuffled, num_batches)
+
+            if self._verbose:
+                print("Split batches")
+            self.X_batch = X_batch
+            self.y_batch = y_batch
 
             # Initialize batch_loss
             batch_train_loss = []
@@ -379,8 +394,18 @@ class NeuralNetwork:
 
                 # Run forward
                 if self._verbose:
+                    print("Batch number: " + str(batch_num))
                     print("Forward: ")
+                self._X_batch = _X_batch
+                self._y_batch = _y_batch
                 output, cache = self.forward(_X_batch)
+
+                
+                self._forward_output = output
+                self._forward_y_batch = _y_batch
+
+                if self._verbose:
+                    print("Calculating batch loss")
                 if self._loss_func.lower() == "mse":
                     batch_train_loss.append(self._mean_squared_error(_y_batch, output))
                 elif self._loss_func.lower() == "bce":
@@ -388,26 +413,66 @@ class NeuralNetwork:
                 else: 
                     raise ValueError("Invalid loss function")
                     
-                # Backpropogate, passing in the true labels y (-y_batch)
+                
                 if self._verbose:
                     print("Done with forward calculations")
                     print("")
+
+                # Backpropogate, passing in the true labels y (_y_batch)
                 grad_dict = self.backprop(_y_batch, output, cache)
+                if self._verbose:
+                    print("Updating parameters with gradient dictionary")
                 self._update_params(grad_dict)
-
-                # Calculate average training loss
-                per_epoch_loss_train.append(np.mean(batch_train_loss))
-
-                # Compute validation loss
-                pred = self.predict(X_val)
-                if self._loss_func.lower() == "mse":
-                    batch_val_loss.append(self._mean_squared_error(y_val, pred))
-                elif self._loss_func.lower() == "bce":
-                    batch_val_loss.append(self._binary_cross_entropy(y_val, pred))
+                if self._verbose:
+                    print("Done with batch " + str(batch_num))
+                    print("")
                 
-                # Calculate average validation loss
-                per_epoch_loss_val.append(np.mean(batch_val_loss))
+                # To delete
+                if batch_num % 10 == 0:
+                    print("Finished batch " + str(batch_num) + " out of " + str(num_batches))
+                batch_num += 1
 
+            # Done with batch calculations
+            if self._verbose:
+                print("Computed all batches, calculating mean training loss for epoch " + str(epoch))
+                print("")
+
+            # Calculate average training loss
+            per_epoch_loss_train.append(np.mean(batch_train_loss))
+
+
+            # Compute the prediction in batches as well to keep laptop from frying
+            if self._verbose:
+                print("Predicting values")
+
+            # # Shuffle validation data
+            # shuffle = np.random.permutation(len(X_val.shape[0]))
+            # X_val_shuffled = X_val[shuffle]
+            # y_val_shuffled = y_val[shuffle]
+            
+            # # Create batches of validation data
+            # X_val_batch = np.array_split(X_val, num_batches)
+            # y_val_batch = np.array_split(y_val, num_batches)
+
+            # for 
+
+
+            pred = self.predict(X_val)
+            
+            if self._verbose:
+                print("Calculating error loss")
+            if self._loss_func.lower() == "mse":
+                batch_val_loss.append(self._mean_squared_error(y_val, pred))
+            elif self._loss_func.lower() == "bce":
+                batch_val_loss.append(self._binary_cross_entropy(y_val, pred))
+            
+            # Calculate average validation loss
+            per_epoch_loss_val.append(np.mean(batch_val_loss))
+
+            if epoch % 10 == 0:
+                print("Finished epoch " + str(epoch + 1) + " out of " + str(self._epochs))
+
+        print("Completed NN fitting")
         return per_epoch_loss_train, per_epoch_loss_val
 
     def predict(self, X: ArrayLike) -> ArrayLike:
@@ -534,6 +599,9 @@ class NeuralNetwork:
         # Calculate loss
         loss = -np.mean(y * np.log(y_hat) + (1 - y) * np.log(1 - y_hat))
         
+        if self._verbose:
+            print("Calculated BCE loss " + str(round(loss, 4)))
+
         return loss
 
 
@@ -582,8 +650,11 @@ class NeuralNetwork:
             loss: float
                 Average loss of mini-batch.
         """
-        loss = np.mean(np.square(y - y_hat))
         
+        loss = np.mean(np.square(y - y_hat))
+        if self._verbose:
+            print("Calculated MSE loss " + str(round(loss, 4)))
+
         return loss
 
     def _mean_squared_error_backprop(self, y: ArrayLike, y_hat: ArrayLike) -> ArrayLike:
