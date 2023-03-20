@@ -335,8 +335,8 @@ class NeuralNetwork:
         for idx, layer in enumerate(self.arch):
             layer_idx = idx + 1
             # Update param by appropriate gradient * lr
-            self._param_dict["W" + str(layer_idx)] -= grad_dict["dW" + str(layer_idx)] * self._lr 
-            self._param_dict['b' + str(layer_idx)] -= grad_dict["db" + str(layer_idx)] * self._lr 
+            self._param_dict["W" + str(layer_idx)] = self._param_dict["W" + str(layer_idx)] - grad_dict["dW" + str(layer_idx)] * self._lr 
+            self._param_dict['b' + str(layer_idx)] = self._param_dict['b' + str(layer_idx)] - grad_dict["db" + str(layer_idx)] * self._lr 
 
 
     def fit(
@@ -510,7 +510,7 @@ class NeuralNetwork:
                 Activation function output.
         """
         nl_transform = 1 / ( 1 + np.exp(-Z))
-        
+
         return(nl_transform)
 
     def _sigmoid_backprop(self, dA: ArrayLike, Z: ArrayLike):
@@ -527,7 +527,6 @@ class NeuralNetwork:
             dZ: ArrayLike
                 Partial derivative of current layer Z matrix.
         """
-
         dZ = dA * self._sigmoid(Z) * (1 - self._sigmoid(Z))
 
         if self._debug:
@@ -601,9 +600,10 @@ class NeuralNetwork:
         # Should implement epsilon value here, but too lazy, instead using np.clip
         # Prevent NaN and Inf values
         y_hat = np.clip(y_hat, 0.00001, 0.99999)
-        # Calculate loss
+
+        y = y.reshape(y_hat.shape)
         loss = -np.mean(y * np.log(y_hat) + (1 - y) * np.log(1 - y_hat))
-        
+
         if self._debug:
             print("Calculated BCE loss " + str(round(loss, 4)))
 
@@ -627,9 +627,10 @@ class NeuralNetwork:
         # Should implement epsilon value here, but too lazy, instead using np.clip
         # Prevent NaN and Inf values
         y_hat = np.clip(y_hat, 0.00001, 0.99999)
+
         y = y.reshape(y_hat.shape)
-        dA = (((1 - y) / (1 - y_hat)) - (y / y_hat)) / len(y)
-        
+        dA =  ((1 - y)/(1 - y_hat) - (y / y_hat)) / len(y)
+
         if self._debug:
             print("Initial BCE backprop calculation")
             print("y shape: " + str(y.shape))
@@ -655,7 +656,7 @@ class NeuralNetwork:
             loss: float
                 Average loss of mini-batch.
         """
-        
+        y = y.reshape(y_hat.shape)
         loss = np.mean(np.square(y - y_hat))
         if self._debug:
             print("Calculated MSE loss " + str(round(loss, 4)))
@@ -689,3 +690,26 @@ class NeuralNetwork:
             self._mse_dA = y_hat
 
         return dA
+
+
+
+# Stop
+
+    def _sigmoid(self, Z: ArrayLike) -> ArrayLike:
+            """
+            Sigmoid activation function.
+            Args:
+                Z: ArrayLike
+                    Output of layer linear transform.
+            Returns:
+                nl_transform: ArrayLike
+                    Activation function output.
+            """
+            #force float array to work with exp function
+            Z = Z.astype(float)
+
+            nl_transform = 1 / (1 + np.exp(-Z))
+            return nl_transform
+    
+
+
